@@ -194,7 +194,7 @@ class Sodoku:
         return (self.is_valid() and
                 self.check_feasible() and
                 all(type(self.board[i][j]) is int
-                    for i, j in zip(range(N), range(N))))
+                    for i in range(N) for j in range(N)))
 
 
 def solve(sodoku):
