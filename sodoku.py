@@ -1,4 +1,5 @@
 from copy import deepcopy
+from random import shuffle
 
 N = 9
 M = 3
@@ -160,6 +161,13 @@ class Sodoku:
                 if self.board[i][j] is None:
                     yield (i, j)
 
+    def iter_random_unfilled(self):
+        choices = [(i, j) for i, j in zip(range(N), range(N))
+                   if self.board[i][j] is None]
+        shuffle(choices)
+        for ch in choices:
+            yield ch
+
     def fill_determined(self):
         recall = False
         for i in range(N):
@@ -193,9 +201,12 @@ def solve(sodoku):
     if sodoku.is_solved():
         return sodoku
 
+    # for i, j in sodoku.iter_unfilled():
+
     # feasible_moves = sodoku.get_feasible_ordered()
     # for i, j in feasible_moves:
-    for i, j in sodoku.iter_unfilled():
+
+    for i, j in sodoku.iter_random_unfilled():
         for v in sodoku.find_feasible(i, j):
             new_board = sodoku.copy()
             new_board.update(i, j, v)
