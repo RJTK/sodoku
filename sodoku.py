@@ -1,5 +1,6 @@
 from copy import deepcopy
 from random import shuffle
+from threading import Thread, Timer, Event
 
 N = 9
 M = 3
@@ -146,7 +147,15 @@ class Sodoku:
         self.fill_determined()
         return
 
+    def iter_unfilled(self):
+        # Iterate brute force from top-left to bottom-right
+        for i in range(N):
+            for j in range(N):
+                if self.board[i][j] is None:
+                    yield (i, j)
+
     def get_feasible_ordered(self):
+        # Iterate in order of constrained-ness
         all_feasible = []
         for i in range(N):
             for j in range(N):
@@ -155,18 +164,28 @@ class Sodoku:
                     all_feasible.append((len(f), (i, j)))
         return [f[1] for f in sorted(all_feasible)]
 
-    def iter_unfilled(self):
-        for i in range(N):
-            for j in range(N):
-                if self.board[i][j] is None:
-                    yield (i, j)
-
     def iter_random_unfilled(self):
-        choices = [(i, j) for i, j in zip(range(N), range(N))
+        # Iterate in a random order
+        choices = [(i, j) for i in range(N) for j in range(N)
                    if self.board[i][j] is None]
         shuffle(choices)
         for ch in choices:
             yield ch
+        return
+
+    def iter_weighted_random_unfilled(self):
+        # Iterate randomly but with the order weighted to benefit
+        # more constrained choices
+        choices = []
+        for i in range(N):
+            for j in range(N):
+                f = self.find_feasible(i, j)
+                k = N - len(f)
+                choices.extend([(i, j)] * k)
+        shuffle(choices)
+        for ch in choices:
+            yield ch
+        return
 
     def fill_determined(self):
         recall = False
@@ -197,14 +216,44 @@ class Sodoku:
                     for i in range(N) for j in range(N)))
 
 
-def solve(sodoku):
+def solve_brute_force(sodoku):
     if sodoku.is_solved():
         return sodoku
 
-    # for i, j in sodoku.iter_unfilled():
+    for i, j in sodoku.iter_unfilled():
+        for v in sodoku.find_feasible(i, j):
+            new_board = sodoku.copy()
+            new_board.update(i, j, v)
+            if not new_board.check_feasible():
+                continue
 
-    # feasible_moves = sodoku.get_feasible_ordered()
-    # for i, j in feasible_moves:
+            solved = solve_brute_force(new_board)
+            if solved is not None:
+                return solved
+    return None
+
+
+def solve_constraint_ordered(sodoku):
+    if sodoku.is_solved():
+        return sodoku
+
+    feasible_moves = sodoku.get_feasible_ordered()
+    for i, j in feasible_moves:
+        for v in sodoku.find_feasible(i, j):
+            new_board = sodoku.copy()
+            new_board.update(i, j, v)
+            if not new_board.check_feasible():
+                continue
+
+            solved = solve_constraint_ordered(new_board)
+            if solved is not None:
+                return solved
+    return None
+
+
+def solve_stochastic(sodoku):
+    if sodoku.is_solved():
+        return sodoku
 
     for i, j in sodoku.iter_random_unfilled():
         for v in sodoku.find_feasible(i, j):
@@ -213,7 +262,78 @@ def solve(sodoku):
             if not new_board.check_feasible():
                 continue
 
-            solved = solve(new_board)
+            solved = solve_stochastic(new_board)
             if solved is not None:
                 return solved
     return None
+
+
+def solve_constraint_weighted_stochastic(sodoku):
+    if sodoku.is_solved():
+        return sodoku
+
+    for i, j in sodoku.iter_weighted_random_unfilled():
+        for v in sodoku.find_feasible(i, j):
+            new_board = sodoku.copy()
+            new_board.update(i, j, v)
+            if not new_board.check_feasible():
+                continue
+
+            solved = solve_constraint_weighted_stochastic(new_board)
+            if solved is not None:
+                return solved
+    return None
+
+
+def solve_stochastic_interruptable(sodoku, event):
+    if event.is_set():
+        return None
+
+    if sodoku.is_solved():
+        return sodoku
+
+    for i, j in sodoku.iter_weighted_random_unfilled():
+        for v in sodoku.find_feasible(i, j):
+            new_board = sodoku.copy()
+            new_board.update(i, j, v)
+            if not new_board.check_feasible():
+                continue
+
+            solved = solve_stochastic_interruptable(new_board, event)
+            if solved is not None:
+                return solved
+
+            if event.is_set():
+                return None
+
+    return None
+
+
+def solve_random_restart(sodoku, restart_timeout=0.25):
+    solved = None
+    event = Event()
+
+    def _solve():
+        nonlocal solved
+        event.clear()
+
+        t = Timer(restart_timeout, stop)
+        t.start()
+        solved = solve_stochastic_interruptable(sodoku, event)
+        t.cancel()
+        return
+
+    def stop():
+        event.set()
+        return
+
+    while True:
+        solve_thread = Thread(target=_solve)
+        solve_thread.start()
+        solve_thread.join()
+        if solved is not None:
+            return solved
+
+
+def solve(sodoku):
+    return solve_random_restart(sodoku)

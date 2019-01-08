@@ -43,6 +43,18 @@ class TestSodoku(TestCase):
                      [None, None, None, None, 1, None, None, None, 6],
                      [None, 4, None, 3, None, None, 8, None, 1]]
 
+    # From wikipedia, apparently this is hard for a brute force algorithm
+    # This also contains the minimum possible number of solutions
+    min_clues_board = [[None, None, None, None, None, None, None, None, None],
+                       [None, None, None, None, None, 3, None, 8, 5],
+                       [None, None, 1, None, 2, None, None, None, None],
+                       [None, None, None, 5, None, 7, None, None, None],
+                       [None, None, 4, None, None, None, 1, None, None],
+                       [None, 9, None, None, None, None, None, None, None],
+                       [5, None, None, None, None, None, None, 7, 3],
+                       [None, None, 2, None, 1, None, None, None, None],
+                       [None, None, None, None, 4, None, None, None, 9]]
+
     invalid_board = [[1, None, 7, 8, None, None, 6, None, None],
                      [None, 5, None, None, 1, 3, None, None, 9],
                      [None, 8, 8, 6, None, None, 7, None, 5],
@@ -131,6 +143,12 @@ class TestSodoku(TestCase):
 
     def test_solve003(self):
         board = self.extreme_board
+        s = solve(Sodoku(board))
+        self.assertTrue(s.is_solved())
+        return
+
+    def test_solve004(self):
+        board = self.min_clues_board
         s = solve(Sodoku(board))
         self.assertTrue(s.is_solved())
         return
