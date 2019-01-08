@@ -1,4 +1,8 @@
-from sodoku import (N, M, Sodoku, solve, FeasibilityError)
+from sodoku import (N, Sodoku, solve)
+from example_boards import (board001, board002, board003, board004,
+                            board005, board006,
+                            min_clues_board, ai_escargot_board,
+                            ai_SE_board)
 from unittest import TestCase
 
 
@@ -22,72 +26,6 @@ class TestSodoku(TestCase):
                   [None, 1, 8, None, 9, 7, None, None, None],
                   [None, None, None, 5, None, None, 9, 6, None],
                   [9, None, None, None, 6, None, 2, None, 8]]
-
-    medium_board = [[None, None, 4, 8, None, 7, None, None, None],
-                    [None, 3, 2, 5, None, 4, None, 6, 7],
-                    [5, None, None, None, None, 3, None, None, None],
-                    [None, 5, None, None, 4, None, None, None, None],
-                    [4, None, 9, None, None, None, 5, None, 2],
-                    [None, None, None, None, 5, None, None, 4, None],
-                    [None, None, None, 9, None, None, None, None, 5],
-                    [2, 6, None, 4, None, 5, 7, 3, None],
-                    [None, None, None, 6, None, 1, 2, None, None]]
-
-    hard_board = [[2, None, None, None, None, None, None, None, None],
-                  [None, None, None, 7, None, None, 3, None, 4],
-                  [None, 3, None, 1, None, 5, None, 2, None],
-                  [None, None, 8, None, 3, 4, None, None, 9],
-                  [None, 9, None, None, None, None, None, 6, None],
-                  [6, None, None, 8, 9, None, 1, None, None],
-                  [None, 5, None, 4, None, 1, None, 8, None],
-                  [3, None, 6, None, None, 9, None, None, None],
-                  [None, None, None, None, None, None, None, None, 7]]
-
-    extreme_board = [[9, None, 5, None, None, 3, None, 2, None],
-                     [2, None, None, None, 7, None, None, None, None],
-                     [None, None, None, 2, None, None, 5, 7, None],
-                     [None, None, 9, None, None, 5, None, None, None],
-                     [None, 6, 8, None, None, None, 7, 4, None],
-                     [None, None, None, 6, None, None, 3, None, None],
-                     [None, 9, 6, None, None, 4, None, None, None],
-                     [None, None, None, None, 1, None, None, None, 6],
-                     [None, 4, None, 3, None, None, 8, None, 1]]
-
-    # From wikipedia, apparently this is hard for a brute force algorithm
-    # This also contains the minimum possible number of solutions
-    min_clues_board = [[None, None, None, None, None, None, None, None, None],
-                       [None, None, None, None, None, 3, None, 8, 5],
-                       [None, None, 1, None, 2, None, None, None, None],
-                       [None, None, None, 5, None, 7, None, None, None],
-                       [None, None, 4, None, None, None, 1, None, None],
-                       [None, 9, None, None, None, None, None, None, None],
-                       [5, None, None, None, None, None, None, 7, 3],
-                       [None, None, 2, None, 1, None, None, None, None],
-                       [None, None, None, None, 4, None, None, None, 9]]
-
-    # Claimed by http://aisudoku.com/index_en.html to be the hardest puzzle
-    # in existence.
-    ai_escargot_board = [[1, None, None, None, None, 7, None, 9, None],
-                         [None, 3, None, None, 2, None, None, None, 8],
-                         [None, None, 9, 6, None, None, 5, None, None],
-                         [None, None, 5, 3, None, None, 9, None, None],
-                         [None, 1, None, None, 8, None, None, None, 2],
-                         [6, None, None, None, None, 4, None, None, None],
-                         [3, None, None, None, None, None, None, 1, None],
-                         [None, 4, 1, None, None, None, None, None, 7],
-                         [None, None, 7, None, None, None, 3, None, None]]
-
-    # Found on stack exchange https://puzzling.stackexchange.com/questions/252
-    # Due to same guy as ai_escargot
-    ai_SE_board = [[8, None, None, None, None, None, None, None, None],
-                   [None, None, 3, 6, None, None, None, None, None],
-                   [None, 7, None, None, 9, None, 2, None, None],
-                   [None, 5, None, None, None, 7, None, None, None],
-                   [None, None, None, None, 4, 5, 7, None, None],
-                   [None, None, None, 1, None, None, None, 3, None],
-                   [None, None, 1, None, None, None, None, 6, 8],
-                   [None, None, 8, 5, None, None, None, 1, None],
-                   [None, 9, None, None, None, None, 4, None, None]]
 
     invalid_board = [[1, None, 7, 8, None, None, 6, None, None],
                      [None, 5, None, None, 1, 3, None, None, 9],
@@ -165,42 +103,63 @@ class TestSodoku(TestCase):
         return
 
     def test_solve001(self):
-        board = self.medium_board
+        board = board001
         s = solve(Sodoku(board))
         self.assertTrue(s.is_solved())
         self.assertTrue(verify_solves(s, board))
         return
 
     def test_solve002(self):
-        board = self.hard_board
+        board = board002
         s = solve(Sodoku(board))
         self.assertTrue(s.is_solved())
         self.assertTrue(verify_solves(s, board))
         return
 
     def test_solve003(self):
-        board = self.extreme_board
+        board = board003
         s = solve(Sodoku(board))
         self.assertTrue(s.is_solved())
         self.assertTrue(verify_solves(s, board))
         return
 
     def test_solve004(self):
-        board = self.min_clues_board
+        board = board004
         s = solve(Sodoku(board))
         self.assertTrue(s.is_solved())
         self.assertTrue(verify_solves(s, board))
         return
 
     def test_solve005(self):
-        board = self.ai_escargot_board
+        board = board005
         s = solve(Sodoku(board))
         self.assertTrue(s.is_solved())
         self.assertTrue(verify_solves(s, board))
         return
 
     def test_solve006(self):
-        board = self.ai_SE_board
+        board = board006
+        s = solve(Sodoku(board))
+        self.assertTrue(s.is_solved())
+        self.assertTrue(verify_solves(s, board))
+        return
+
+    def test_solve_min_clues(self):
+        board = min_clues_board
+        s = solve(Sodoku(board))
+        self.assertTrue(s.is_solved())
+        self.assertTrue(verify_solves(s, board))
+        return
+
+    def test_solve_ai_escargot(self):
+        board = ai_escargot_board
+        s = solve(Sodoku(board))
+        self.assertTrue(s.is_solved())
+        self.assertTrue(verify_solves(s, board))
+        return
+
+    def test_solve_ai_se(self):
+        board = ai_SE_board
         s = solve(Sodoku(board))
         self.assertTrue(s.is_solved())
         self.assertTrue(verify_solves(s, board))

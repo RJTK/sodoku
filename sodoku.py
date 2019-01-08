@@ -1,9 +1,12 @@
 from copy import deepcopy
 from random import shuffle
 from threading import Thread, Timer, Event
+from itertools import product
 
 N = 9
 M = 3
+
+all_ij = list(product(range(N), range(N)))
 
 
 class FeasibilityError(Exception):
@@ -16,6 +19,7 @@ class FeasibilityError(Exception):
 
 class Sodoku:
     def __init__(self, board):
+        self.original_board = board
         self.board = deepcopy(board)
         assert(len(board) == N)
         for row in board:
@@ -26,7 +30,8 @@ class Sodoku:
         return
 
     def get_blank_feasible(self):
-        return [[None] * N for _ in range(N)]
+        # return [[None] * N for _ in range(N)]
+        return deepcopy(self.original_board)
 
     def reset_feasible(self, i_j=None):
         if i_j is None:
@@ -80,13 +85,14 @@ class Sodoku:
     def iter_box_indices(self, i, j):
         box_row = i // M
         box_col = j // M
-        for i in range(M):
-            for j in range(M):
-                yield (M * box_row + i, M * box_col + j)
+        for i, j in product(range(M), range(M)):
+            yield (M * box_row + i, M * box_col + j)
         return
 
     def find_feasible(self, i, j):
-        if self.feasible[i][j] is None:
+        if self.original_board[i][j] is not None:
+            feasible = [self.original_board[i][j]]
+        elif self.feasible[i][j] is None:
             feasible = set(list(range(1, N + 1)))
 
             def _filter_feasible(iterable):
@@ -107,8 +113,8 @@ class Sodoku:
     def is_valid(self):
         return (all([self.is_valid_row(i) for i in range(N)]) and
                 all([self.is_valid_col(j) for j in range(N)]) and
-                all([self.is_valid_box(M * i, M * j) for i in range(M)
-                     for j in range(M)]))
+                all([self.is_valid_box(M * i, M * j)
+                     for i, j in product(range(M), range(M))]))
 
     def check_feasible(self):
         return not any(self.board[i][j] is None and
@@ -136,7 +142,7 @@ class Sodoku:
 
     def is_feasible(self, i, j, v):
         feasible = self.find_feasible(i, j)
-        return v in feasible
+        return (v in feasible or self.board[i][j] == v)
 
     def update(self, i, j, v):
         if not self.is_feasible(i, j, v):
@@ -147,21 +153,43 @@ class Sodoku:
         self.fill_determined()
         return
 
+    def fill_determined(self):
+        for i, j in all_ij:
+            if self.board[i][j] is None:
+                f = self.find_feasible(i, j)
+                if len(f) == 1:
+                    self.board[i][j] = next(iter(f))
+                    self.reset_feasible((i, j))
+                    self.fill_determined()
+                    break
+        return
+
+    def copy(self):
+        assert self.is_valid(), "Bug, invalid state!"
+        new = Sodoku(self.board)
+        return new
+
+    def is_solved(self):
+        return (self.is_valid() and
+                self.check_feasible() and
+                all(type(self.board[i][j]) is int
+                    for i in range(N) for j in range(N)))
+
+    # ------ Below are iterators for solve methods ----------
     def iter_unfilled(self):
         # Iterate brute force from top-left to bottom-right
-        for i in range(N):
-            for j in range(N):
-                if self.board[i][j] is None:
-                    yield (i, j)
+        for i, j in all_ij:
+            if self.board[i][j] is None:
+                yield (i, j)
 
     def get_feasible_ordered(self):
         # Iterate in order of constrained-ness
         all_feasible = []
-        for i in range(N):
-            for j in range(N):
-                if self.board[i][j] is None:
-                    f = self.find_feasible(i, j)
-                    all_feasible.append((len(f), (i, j)))
+
+        for i, j in all_ij:
+            if self.board[i][j] is None:
+                f = self.find_feasible(i, j)
+                all_feasible.append((len(f), (i, j)))
         return [f[1] for f in sorted(all_feasible)]
 
     def iter_random_unfilled(self):
@@ -177,43 +205,16 @@ class Sodoku:
         # Iterate randomly but with the order weighted to benefit
         # more constrained choices
         choices = []
-        for i in range(N):
-            for j in range(N):
+        for i, j in all_ij:
+            if self.board[i][j] is None:
                 f = self.find_feasible(i, j)
                 k = N - len(f)
                 choices.extend([(i, j)] * k)
+
         shuffle(choices)
         for ch in choices:
             yield ch
         return
-
-    def fill_determined(self):
-        recall = False
-        for i in range(N):
-            for j in range(N):
-                if self.board[i][j] is None:
-                    f = self.find_feasible(i, j)
-                    if len(f) == 1:
-                        self.board[i][j] = next(iter(f))
-                        self.reset_feasible((i, j))
-                        recall = True
-                        break
-            if recall:
-                break
-        if recall:
-            self.fill_determined()
-        return
-
-    def copy(self):
-        assert self.is_valid(), "Bug, invalid state!"
-        new = Sodoku(self.board)
-        return new
-
-    def is_solved(self):
-        return (self.is_valid() and
-                self.check_feasible() and
-                all(type(self.board[i][j]) is int
-                    for i in range(N) for j in range(N)))
 
 
 def solve_brute_force(sodoku):
@@ -309,15 +310,19 @@ def solve_stochastic_interruptable(sodoku, event):
     return None
 
 
-def solve_random_restart(sodoku, restart_timeout=0.25):
+def solve_random_restart(sodoku, initial_timeout=None):
     solved = None
     event = Event()
+    if initial_timeout is None:
+        initial_timeout = 0.01
+
+    timeout = initial_timeout
 
     def _solve():
         nonlocal solved
         event.clear()
 
-        t = Timer(restart_timeout, stop)
+        t = Timer(timeout, stop)
         t.start()
         solved = solve_stochastic_interruptable(sodoku, event)
         t.cancel()
@@ -333,6 +338,8 @@ def solve_random_restart(sodoku, restart_timeout=0.25):
         solve_thread.join()
         if solved is not None:
             return solved
+        if timeout < 5.0:
+            timeout *= 1.1
 
 
 def solve(sodoku):
