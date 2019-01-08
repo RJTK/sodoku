@@ -1,5 +1,5 @@
 from copy import deepcopy
-from random import shuffle
+from random import shuffle, choice
 from threading import Thread, Timer, Event
 from itertools import product
 
@@ -335,29 +335,42 @@ def solve_random_search(sodoku, event):
     if sodoku.is_solved():
         return sodoku
 
-    max_breadth = 5
+    breadths = list(range(3, 16, 2))
+    max_breadth = choice(breadths)
     n = 1
 
-    queue = [sodoku]
+    queue = []
+
+    def _append_queue(s):
+        nonlocal queue
+        # This is to avoid exploring the same paths more than once.
+        queue.append((s, s.iter_weighted_random_unfilled()))
+        # queue.append((s, ((i, j) for (i, j) in s.get_feasible_ordered())))
+        return
+
+    _append_queue(sodoku)
     while queue:
-        s = queue.pop(0)
+        s, iterator = queue.pop(0)
         if event.is_set():
             return None
 
-        for i, j in s.iter_weighted_random_unfilled():
+        for i, j in iterator:
             for v in s.find_feasible(i, j):
                 n += 1
                 new_board = s.copy()
                 new_board.update(i, j, v)
                 if new_board.check_feasible():
-                    queue.append(new_board)
+                    _append_queue(new_board)
 
                 if new_board.is_solved():
                     return new_board
 
+                if n >= max_breadth:
+                    break
+
             if n >= max_breadth:
                 n = 1
-                queue.append(new_board)
+                _append_queue(s)
                 break
 
     raise AssertionError("Not solvable!")
@@ -377,7 +390,7 @@ def solve_random_restart(sodoku, initial_timeout=None):
 
         t = Timer(timeout, stop)
         t.start()
-        solved = solve_bfs_stochastic_interruptable(sodoku, event)
+        solved = solve_random_search(sodoku, event)
         t.cancel()
         return
 
