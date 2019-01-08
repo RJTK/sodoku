@@ -183,10 +183,10 @@ class Sodoku:
         return new
 
     def is_solved(self):
-        if len(self.get_feasible_ordered()) == 0:
-            return True
-        else:
-            return False
+        return (self.is_valid() and
+                self.check_feasible() and
+                all(type(self.board[i][j]) is int
+                    for i, j in zip(range(N), range(N))))
 
 
 def solve(sodoku):
