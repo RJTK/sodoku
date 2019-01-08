@@ -138,11 +138,10 @@ class Sodoku:
 
     def get_fixed(self, iterable):
         return [it for it in iterable
-                if type(it) is int]
+                if it is not None]
 
     def is_feasible(self, i, j, v):
-        feasible = self.find_feasible(i, j)
-        return (v in feasible or self.board[i][j] == v)
+        return (self.board[i][j] == v or v in self.find_feasible(i, j))
 
     def update(self, i, j, v):
         if not self.is_feasible(i, j, v):
@@ -154,7 +153,8 @@ class Sodoku:
         return
 
     def fill_determined(self):
-        for i, j in all_ij:
+        for i, j in [(i, j) for i, j in all_ij
+                     if self.board[i][j] is None]:
             if self.board[i][j] is None:
                 f = self.find_feasible(i, j)
                 if len(f) == 1:
@@ -170,10 +170,10 @@ class Sodoku:
         return new
 
     def is_solved(self):
-        return (self.is_valid() and
-                self.check_feasible() and
-                all(type(self.board[i][j]) is int
-                    for i in range(N) for j in range(N)))
+        return (all(self.board[i][j] is not None
+                    for i in range(N) for j in range(N)) and
+                self.is_valid() and
+                self.check_feasible())
 
     # ------ Below are iterators for solve methods ----------
     def iter_unfilled(self):
@@ -232,6 +232,27 @@ def solve_brute_force(sodoku):
             if solved is not None:
                 return solved
     return None
+
+
+def solve_bfs_brute_force(sodoku):
+    if sodoku.is_solved():
+        return sodoku
+
+    queue = [sodoku]
+    while queue:
+        s = queue.pop(0)
+
+        for i, j in s.iter_unfilled():
+            for v in s.find_feasible(i, j):
+                new_board = s.copy()
+                new_board.update(i, j, v)
+                if new_board.check_feasible():
+                    queue.append(new_board)
+
+                if new_board.is_solved():
+                    return new_board
+
+    raise AssertionError("Unsolved!")
 
 
 def solve_constraint_ordered(sodoku):
@@ -310,6 +331,38 @@ def solve_stochastic_interruptable(sodoku, event):
     return None
 
 
+def solve_bfs_stochastic_interruptable(sodoku, event):
+    if sodoku.is_solved():
+        return sodoku
+
+    max_breadth = 5
+    n = 1
+
+    queue = [sodoku]
+    while queue:
+        s = queue.pop(0)
+        if event.is_set():
+            return None
+
+        for i, j in s.iter_weighted_random_unfilled():
+            for v in s.find_feasible(i, j):
+                n += 1
+                new_board = s.copy()
+                new_board.update(i, j, v)
+                if new_board.check_feasible():
+                    queue.append(new_board)
+
+                if new_board.is_solved():
+                    return new_board
+
+            if n >= max_breadth:
+                n = 1
+                queue.append(new_board)
+                break
+
+    raise AssertionError("Not solvable!")
+
+
 def solve_random_restart(sodoku, initial_timeout=None):
     solved = None
     event = Event()
@@ -324,7 +377,7 @@ def solve_random_restart(sodoku, initial_timeout=None):
 
         t = Timer(timeout, stop)
         t.start()
-        solved = solve_stochastic_interruptable(sodoku, event)
+        solved = solve_bfs_stochastic_interruptable(sodoku, event)
         t.cancel()
         return
 
