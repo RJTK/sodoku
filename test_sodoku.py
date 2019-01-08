@@ -2,6 +2,16 @@ from sodoku import (N, M, Sodoku, solve, FeasibilityError)
 from unittest import TestCase
 
 
+def verify_solves(sodoku, init_board):
+    for i in range(N):
+        for j in range(N):
+            s = sodoku.board[i][j]
+            b = init_board[i][j]
+            if b is not None and b != s:
+                return False
+    return True
+
+
 class TestSodoku(TestCase):
     easy_board = [[1, None, 7, 8, None, None, 6, None, None],
                   [None, 5, None, None, 1, 3, None, None, 9],
@@ -54,6 +64,30 @@ class TestSodoku(TestCase):
                        [5, None, None, None, None, None, None, 7, 3],
                        [None, None, 2, None, 1, None, None, None, None],
                        [None, None, None, None, 4, None, None, None, 9]]
+
+    # Claimed by http://aisudoku.com/index_en.html to be the hardest puzzle
+    # in existence.
+    ai_escargot_board = [[1, None, None, None, None, 7, None, 9, None],
+                         [None, 3, None, None, 2, None, None, None, 8],
+                         [None, None, 9, 6, None, None, 5, None, None],
+                         [None, None, 5, 3, None, None, 9, None, None],
+                         [None, 1, None, None, 8, None, None, None, 2],
+                         [6, None, None, None, None, 4, None, None, None],
+                         [3, None, None, None, None, None, None, 1, None],
+                         [None, 4, 1, None, None, None, None, None, 7],
+                         [None, None, 7, None, None, None, 3, None, None]]
+
+    # Found on stack exchange https://puzzling.stackexchange.com/questions/252
+    # Due to same guy as ai_escargot
+    ai_SE_board = [[8, None, None, None, None, None, None, None, None],
+                   [None, None, 3, 6, None, None, None, None, None],
+                   [None, 7, None, None, 9, None, 2, None, None],
+                   [None, 5, None, None, None, 7, None, None, None],
+                   [None, None, None, None, 4, 5, 7, None, None],
+                   [None, None, None, 1, None, None, None, 3, None],
+                   [None, None, 1, None, None, None, None, 6, 8],
+                   [None, None, 8, 5, None, None, None, 1, None],
+                   [None, 9, None, None, None, None, 4, None, None]]
 
     invalid_board = [[1, None, 7, 8, None, None, 6, None, None],
                      [None, 5, None, None, 1, 3, None, None, 9],
@@ -127,28 +161,47 @@ class TestSodoku(TestCase):
         board = self.easy_board
         s = solve(Sodoku(board))
         self.assertTrue(s.is_solved())
+        self.assertTrue(verify_solves(s, board))
         return
 
     def test_solve001(self):
         board = self.medium_board
         s = solve(Sodoku(board))
         self.assertTrue(s.is_solved())
+        self.assertTrue(verify_solves(s, board))
         return
 
     def test_solve002(self):
         board = self.hard_board
         s = solve(Sodoku(board))
         self.assertTrue(s.is_solved())
+        self.assertTrue(verify_solves(s, board))
         return
 
     def test_solve003(self):
         board = self.extreme_board
         s = solve(Sodoku(board))
         self.assertTrue(s.is_solved())
+        self.assertTrue(verify_solves(s, board))
         return
 
     def test_solve004(self):
         board = self.min_clues_board
         s = solve(Sodoku(board))
         self.assertTrue(s.is_solved())
+        self.assertTrue(verify_solves(s, board))
+        return
+
+    def test_solve005(self):
+        board = self.ai_escargot_board
+        s = solve(Sodoku(board))
+        self.assertTrue(s.is_solved())
+        self.assertTrue(verify_solves(s, board))
+        return
+
+    def test_solve006(self):
+        board = self.ai_SE_board
+        s = solve(Sodoku(board))
+        self.assertTrue(s.is_solved())
+        self.assertTrue(verify_solves(s, board))
         return
