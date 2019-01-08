@@ -331,7 +331,7 @@ def solve_stochastic_interruptable(sodoku, event):
     return None
 
 
-def solve_bfs_stochastic_interruptable(sodoku, event):
+def solve_random_search(sodoku, event):
     if sodoku.is_solved():
         return sodoku
 
